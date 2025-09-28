@@ -492,3 +492,63 @@ def upsert_canvas_tasks_embedded(users_col, oid, raw_tasks):
             )
         )
     users_col.bulk_write(ops, ordered=False)
+
+
+def classify_tasks_batch(tasks):
+    """
+    Sends a batch of tasks to Gemini for classification.
+    Returns a dict {task_id: isFlexible}
+    """
+    task_list_str = "\n".join(
+        [f"- ID: {str(t['_id'])}, Title: {t['title']}, Desc: {t.get('description', '')}"
+         for t in tasks]
+    )
+
+    prompt = f"""
+    You are classifying tasks as flexible or non-flexible.
+
+    - Flexible = can be rescheduled/moved (e.g., "Do homework", "Read chapter").
+    - Non-flexible = fixed events (e.g., "Exam", "Lecture", "Meeting").
+
+    Tasks:
+    {task_list_str}
+
+    Return ONLY valid JSON in this format:
+    {{
+      "results": [
+        {{"id": "<task_id>", "isFlexible": true|false}}
+      ]
+    }}
+    """
+
+    response = ask_gemini(prompt)
+    
+    try:
+        data = json.loads(response)
+        return {item["id"]: item["isFlexible"] for item in data["results"]}
+    except Exception as e:
+        raise ValueError(f"AI response not valid JSON:\n{response}") from e
+
+
+def run_batch_classification():
+    """
+    Classifies all Canvas tasks in one batch (or in chunks).
+    """
+    tasks = list(tasks_collection.find({
+        "source": "canvas",
+        "isFlexible": {"$exists": False}
+    }))
+
+    if not tasks:
+        print("No unclassified tasks.")
+        return
+
+    classification = classify_tasks_batch(tasks)
+
+    for task in tasks:
+        is_flexible = classification.get(str(task["_id"]))
+        if is_flexible is not None:
+            tasks_collection.update_one(
+                {"_id": task["_id"]},
+                {"$set": {"isFlexible": is_flexible}}
+            )
