@@ -25,10 +25,6 @@ from functions import (
     ask_gemini,
 )
 
-e = getAllCanvasTasks(
-    "9342~vxXV3KQu49NkRmZJwnrrLFJcJwA8eDBzmY8GcemJnaXNVZ9KKQv3MmryYQhKD4J3"
-)
-print(e)
 
 
 MONGODB_URI = os.getenv("MONGODB_URI")
@@ -39,8 +35,22 @@ GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 mongo = MongoClient(MONGODB_URI)
 db = mongo[DB_NAME]
 users_col = db["users"]
+doc = users_col.find_one({"_id": as_object_id("68d88841c740ba7296bf10cd")}, {"tasks": 1})
 
-upsert_canvas_tasks_embedded(
-    users_col, as_object_id("68d88841c740ba7296bf10cd"), e
-)
-print()
+tasks = []
+for t in doc.get("tasks", []):
+    tasks.append(
+        {
+            "id": str(t["_id"]),
+            "title": t.get("title"),
+            # "desc": t.get("description"),
+            "startTime": t.get("startTime"),
+            "endTime": t.get("endTime"),
+            "dueDate": t.get("dueDate"),
+            "priority": t.get("priority", "med"),
+        }
+    )
+print(tasks)
+res = ask_gemini([{"role": 'user', "parts": ["add another hackathon to next week"]}], tasks)
+print(res)
+

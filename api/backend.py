@@ -22,7 +22,8 @@ from api.functions import (
     list_events_with_google_client,
     getAllCanvasTasks,
     upsert_canvas_tasks_embedded,
-    ask_gemini
+    ask_gemini,
+    parse_ai_response,
 )
 # from bson import
 
@@ -501,9 +502,118 @@ def chat():
                     "priority": t.get("priority", "med"),
                 }
             )
-        
+
         response = ask_gemini(conversation, tasks)
 
+        print(response)
+        if response.strip().startswith("```json"):
+            aiResponse = parse_ai_response(response)
+            intent = aiResponse["intent"]
+            # ---------- INTENT: RESCHEDULE ----------
+            if intent == "reschedule":
+                # expects: {"intent":"reschedule","id":"<taskId>","startTime":"ISO","endTime":"ISO"}
+                tid = as_object_id(aiResponse.get("id"))
+                if not tid:
+                    return RETURNS.ERRORS.bad_request("invalid task id")
+
+                updates = {}
+                if "startTime" in aiResponse:
+                    updates["tasks.$.startTime"] = aiResponse["startTime"]
+                if "endTime" in aiResponse:
+                    updates["tasks.$.endTime"] = aiResponse["endTime"]
+                if "dueDate" in aiResponse:
+                    updates["tasks.$.dueDate"] = aiResponse["dueDate"]
+                if not updates:
+                    return RETURNS.ERRORS.bad_request("no schedule fields provided")
+
+                updates["tasks.$.updatedAt"] = now_iso()
+
+                res = users_col.update_one(
+                    {"_id": uoid, "tasks._id": tid}, {"$set": updates}
+                )
+                if res.matched_count == 0:
+                    return jsonify(
+                        {"status": "ERROR", "message": "Task not found"}
+                    ), 404
+
+                # return updated list
+                doc = users_col.find_one({"_id": uoid}, {"tasks": 1})
+                return jsonify(
+                    {"status": "SUCCESS", "tasks": doc.get("tasks", [])}
+                ), 200
+
+            # ---------- INTENT: ADD ----------
+            elif intent == "add":
+                # expects: {"intent":"add","title": "...", "desc":"...", "startTime":"ISO|null",
+                #           "endTime":"ISO|null","dueDate":"ISO|null","priority":"low|med|high"}
+                title = aiResponse.get("title") or "(Untitled)"
+                desc = aiResponse.get("desc") or aiResponse.get("description") or ""
+                start = aiResponse.get("startTime")
+                end = aiResponse.get("endTime")
+                due = aiResponse.get("dueDate") or end
+                priority = (aiResponse.get("priority") or "med").lower()
+                if priority not in {"low", "med", "high"}:
+                    priority = "med"
+
+                new_task = {
+                    "_id": ObjectId(),
+                    "source": "ai",
+                    "externalId": None,
+                    "title": title,
+                    "description": desc,
+                    "startTime": start,
+                    "endTime": end,
+                    "dueDate": due,
+                    "estimatedMinutes": int(aiResponse.get("estimatedMinutes") or 60),
+                    "minutesTaken": 0,
+                    "isFlexible": bool(aiResponse.get("isFlexible"))
+                    if "isFlexible" in aiResponse
+                    else True,
+                    "status": aiResponse.get("status") or "todo",
+                    "priority": priority,
+                    "createdAt": now_iso(),
+                    "updatedAt": now_iso(),
+                }
+
+                users_col.update_one(
+                    {"_id": uoid},
+                    {"$push": {"tasks": new_task}, "$set": {"updatedAt": now_iso()}},
+                )
+
+                # return updated list (including the new task id)
+                doc = users_col.find_one({"_id": uoid}, {"tasks": 1})
+                return jsonify(
+                    {"status": "SUCCESS", "tasks": doc.get("tasks", [])}
+                ), 201
+
+            # ---------- INTENT: REMOVE ----------
+            elif intent == "remove":
+                # expects: {"intent":"remove","id":"<taskId>"}
+                tid = as_object_id(aiResponse.get("id"))
+                if not tid:
+                    return RETURNS.ERRORS.bad_request("invalid task id")
+
+                res = users_col.update_one(
+                    {"_id": uoid},
+                    {
+                        "$pull": {"tasks": {"_id": tid}},
+                        "$set": {"updatedAt": now_iso()},
+                    },
+                )
+                if res.modified_count == 0:
+                    return jsonify(
+                        {"status": "ERROR", "message": "Task not found"}
+                    ), 404
+
+                doc = users_col.find_one({"_id": uoid}, {"tasks": 1})
+                return jsonify(
+                    {"status": "SUCCESS", "tasks": doc.get("tasks", [])}
+                ), 200
+        else:
+            return RETURNS.SUCCESS.return_chat_message(response)
+    except Exception as e:
+        print(e)
+        return RETURNS.ERRORS.internal_error()
 
     except BaseException as error:
         print(error)

@@ -30,52 +30,93 @@ genai.configure(api_key=GEMINI_API_KEY)
 
 # System prompt for consistent AI behavior
 
-SYSTEM_PROMPT = """
-You are an advanced task management assistant.
 
-You MUST:
-1. **Intents**
-   - Detect intents: add, remove, reschedule, summarize, autoschedule.
-   - Always return JSON in this format:
-     {
-       "intent": "add|remove|reschedule|summarize|autoschedule",
-       "changes": [
-         {
-           "title": "string",
-           "desc": "Concise description of the task",
-           "startTime": "YYYY-MM-DDTHH:MM",
-           "endTime": "YYYY-MM-DDTHH:MM",
-           "dueDate": "YYYY-MM-DDTHH:MM",
-           "id": "optional, for remove/reschedule",
-         }
-       ],
-       "summary": "string summary of changes"
-     }
+def now_iso():
+    # ISO8601 to seconds, with timezone Z
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-2. **Task Types**
-   - Immovable tasks: exams, classes, deadlines → **never move** them.
-   - Flexible tasks: study, projects, review sessions, chores → can be scheduled into open slots.
 
-3. **Scheduling Rules**
-   - Find free time slots between immovable tasks and outside sleeping hours (e.g., 08:00–22:00).
-   - Insert flexible tasks into available slots of the same day or spread across the week.
-   - Respect task duration (`estimatedMinutes`) when placing tasks.
-   - Avoid double-booking.
-   - Balance load across multiple days if there are too many flexible tasks for one day.
+SYSTEM_PROMPT = """You are an advanced task management assistant.
 
-4. **Time Format**
-   - Always use 24-hour ISO8601 style: YYYY-MM-DDTHH:MM.
-   - Times must match the user’s current week context if not explicitly given.
+Your job:
+- Detect the user’s intent: **add | remove | reschedule | summarize | autoschedule**.
+- Return ONLY a JSON object in the exact format shown below.
+- Dates must always be in strict **YYYY-MM-DDTHH:MM** 24-hour ISO8601 format.
+- **If you do not have enough information to fill all required fields (e.g., startTime, endTime, title, description, dueDate), ASK the user for clarification BEFORE returning JSON.**
+- Never guess times or details; always confirm missing info.
 
-5. **Output**
-   - Provide explicit startTime and endTime for all scheduled tasks.
-   - Summarize what was added, removed, or rescheduled in plain English.
+---
 
-Do NOT overwrite or delete Google Calendar events.
-Do NOT alter immovable tasks (exams, classes, deadlines).
-Only auto-schedule flexible tasks into free time slots.
-"""
+### ALLOWED OUTPUT FORMATS
 
+#### 1️⃣ RESCHEDULE
+User wants to move an existing task:
+{
+  "intent": "reschedule",
+  "id": "abc-123",
+  "startTime": "2025-09-29T09:00",
+  "endTime": "2025-09-29T10:00"
+}
+
+#### 2️⃣ ADD
+User wants to create a new task:
+{
+  "intent": "add",
+  "title": "Draft the presentation slides",
+  "description": "",
+  "startTime": null,
+  "endTime": null,
+  "dueDate": "2025-10-03T23:59"
+}
+
+#### 3️⃣ REMOVE
+User wants to delete a task:
+{
+  "intent": "remove",
+  "id": "xyz-789"
+}
+
+#### 4️⃣ SUMMARIZE
+User wants a summary of changes:
+{
+  "intent": "summarize",
+  "summary": "Plain English summary of recent task changes."
+}
+
+#### 5️⃣ AUTOSCHEDULE
+User wants to auto-schedule flexible tasks:
+{
+  "intent": "autoschedule",
+  "changes": [
+    {
+      "_id": "generated-or-existing-id",
+      "source": "manual|google|canvas|ai",
+      "externalId": "string|null",
+      "title": "Study for physics exam",
+      "description": "Chapter 3 & 4",
+      "startTime": "2025-09-29T14:00",
+      "endTime": "2025-09-29T16:00",
+      "dueDate": "2025-09-30T23:59",
+      "estimatedMinutes": 120,
+      "minutesTaken": 0,
+      "isFlexible": true,
+      "status": "todo",
+      "priority": "med"
+    }
+  ],
+  "summary": "Scheduled study blocks for upcoming physics exam."
+}
+
+---
+
+### RULES
+- **Do NOT modify or delete immovable tasks** (exams, classes, deadlines).
+- **Flexible tasks only** may be auto-scheduled between **08:00–22:00**.
+- Avoid double-booking. Spread load across days if needed.
+- Always return startTime & endTime explicitly when scheduling.
+- **Never overwrite Google Calendar events**.
+- **If any required info (title, startTime, endTime, dueDate, description) is unclear or missing, ask the user first.**
+- Current time: """ + now_iso()
 # "estimatedMinutes": 60,
 # "isFlexible": true,
 # "source": "manual|google|canvas",
@@ -92,13 +133,13 @@ def ask_gemini(convo: list, tasks) -> str:
     """
     Send user input to Gemini and return response text.
     """
-    model = genai.GenerativeModel("gemini-2.5-flash")
+    model = genai.GenerativeModel("gemini-2.0-flash")
 
     # Include system prompt in the first user message
     chat = model.start_chat(
         history=[
             {"role": "user", "parts": [SYSTEM_PROMPT]},
-            {"role": "user", "parts": tasks},
+            {"role": "user", "parts": [str(tasks)]},
             *convo[:-1],
         ]
     )
@@ -166,9 +207,9 @@ def gcal_event_to_task(ev, user_oid):
         "externalId": ev.get("id"),
         "title": title,
         "description": desc,
-        "startTime": start_iso,
-        "endTime": end_iso,
-        "dueDate": end_iso,
+        "startTime": start_iso[:-9],
+        "endTime": end_iso[:-9],
+        "dueDate": end_iso[:-9],
         "estimatedMinutes": mins(start_iso, end_iso),
         "minutesTaken": 0,
         "isFlexible": False,
@@ -256,7 +297,6 @@ def list_events_with_google_client(tokens: dict, tz="America/New_York"):
     time_min = datetime.now(timezone.utc).isoformat()
     time_max = (datetime.now(timezone.utc) + timedelta(days=14)).isoformat()
 
-    events = []
     page_token = None
     resp = (
         service.events()
@@ -272,9 +312,7 @@ def list_events_with_google_client(tokens: dict, tz="America/New_York"):
         )
         .execute()
     )
-
-    events.extend(resp.get("items", []))
-
+    events = resp.get("items", [])
     return events
 
 
@@ -376,11 +414,6 @@ def fetch_assignments_for_course(
         tasks.append(task)
 
     return tasks
-
-
-def now_iso():
-    # ISO8601 to seconds, with timezone Z
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def normalize_canvas_task(raw: dict) -> dict:

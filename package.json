@@ -19,6 +19,7 @@
     "express": "^4.21.2",
     "express-session": "^1.18.2",
     "googleapis": "^105.0.0",
-    "mongoose": "^8.18.2"
+    "mongoose": "^8.18.2",
+    "next": "^15.5.4"
   }
 }
