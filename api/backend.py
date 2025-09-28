@@ -31,7 +31,23 @@ from functions import (
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
+
+CORS(
+    app,
+    resources={
+        r"/*": {
+            "origins": [
+                "http://localhost:3000",
+                "https://horai-dun.vercel.app",  # if you also call from this origin
+            ]
+        }
+    },
+    supports_credentials=True,  # needed if you use cookies or credentials: 'include'
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
+    expose_headers=["Content-Type"],
+    max_age=86400,
+)
 
 MONGODB_URI = os.getenv("MONGODB_URI")
 DB_NAME = os.getenv("MONGODB_DB")
