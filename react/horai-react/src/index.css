@@ -576,3 +576,97 @@ a:hover { text-decoration: underline; }
 }
 .chat-send:disabled { opacity: 0.6; cursor: default; }
 .chat-send:hover:not(:disabled) { filter: brightness(0.95); }
+
+/* --- Integrations card --- */
+.integrations-card {
+  border: 1px solid #263041;
+  background: #0b0f14;
+  color: #e6edf3;
+  border-radius: 12px;
+  padding: 16px;
+}
+.section-title {
+  margin: 0 0 10px 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+.integration-block + .integration-block {
+  margin-top: 16px;
+}
+.integration-sep {
+  border: none;
+  border-top: 1px solid #263041;
+  margin: 16px 0;
+}
+.integration-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.integration-title {
+  font-weight: 700;
+  font-size: 15px;
+}
+.integration-subtitle {
+  color: #9fb7d1;
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+/* form */
+.form {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+.label {
+  font-size: 13px;
+}
+.input {
+  background: #0f1520;
+  color: #e6edf3;
+  border: 1px solid #263041;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 14px;
+}
+.form-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* buttons */
+.btn {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.btn-primary {
+  background: #238636;
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled) { filter: brightness(0.95); }
+.btn-google {
+  background: #1f6feb;
+  color: #fff;
+}
+.btn-google:hover:not(:disabled) { filter: brightness(0.95); }
+
+/* status */
+.status-msg {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #c9def4;
+}
+.status-ok {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #40c463;
+}

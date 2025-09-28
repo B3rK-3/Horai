@@ -1,31 +1,48 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import CalendarPage from './pages/CalendarPage'
 import AuthGate from './pages/AuthGate'
-import ChatWidget from './components/ChatWidget'
-// ❌ remove this: import { serializeUseCacheCacheStore } from 'next/...'
+import ConnectionsPage from './pages/ConnectionsPage'
 
 export default function App() {
   const [userID, setUserID] = useState(null)
 
-  useEffect(() => {
-    if (userID) {
-      // update the URL without reload
-      window.history.replaceState({}, '', '/calendar')
-    } else {
-      window.history.replaceState({}, '', '/login')
-    }
-  }, [userID])
+  const funcSetUser = (userId) => {
+    setUserID(userId);
+    localStorage.setItem('userID', userId)
+    console.log(userId)
+  }
+  if (!localStorage.getItem('userID')) return <AuthGate onAuth={funcSetUser} />
 
-  if (!userID) return <AuthGate onAuth={setUserID} />
+  const Protected = ({ children }) => children
+  const handleLogout = () => {setUserID(null); localStorage.removeItem('userID')}
 
   return (
     <div id="app">
       <div id="main-app-container" style={{ display: 'block' }}>
-        <ChatWidget backendBase="https://horai-dun.vercel.app"  userID={userID}/>
-        <Navbar onLogout={() => { setUserID(null); }} />
+        <Navbar onLogout={handleLogout} />
         <div className="container" id="page-content">
-          <CalendarPage userID={userID} />
+          <Routes>
+            <Route
+              path="/calendar"
+              element={
+                <Protected>
+                  <CalendarPage/>
+                </Protected>
+              }
+            />
+            <Route
+              path="/connections"
+              element={
+                <Protected>
+                  <ConnectionsPage />
+                </Protected>
+              }
+            />
+            {/* default: send logged-in users to calendar */}
+            <Route path="*" element={<Navigate to="/calendar" replace />} />
+          </Routes>
         </div>
       </div>
     </div>

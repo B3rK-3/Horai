@@ -3,12 +3,12 @@ import { endpoints } from '../api'
 import BigCalendar from '../components/BigCalendar'
 import ToastCalendar from '../components/ToastCalendar'
 
-export default function CalendarPage({ userID }) {
+export default function CalendarPage() {
   const [events, setEvents] = useState([])
   const [date, setDate] = useState(new Date())
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-    console.log(userID)
+  const userID = localStorage.getItem('userID')
   const load = useCallback(async (signal) => {
     if (!userID) return
     setLoading(true)
@@ -62,7 +62,7 @@ export default function CalendarPage({ userID }) {
           onNavigate={setDate}
           onSelectEvent={(evt) => console.log('selected event', evt)}
           onSelectSlot={(slot) => console.log('selected slot', slot)}
-          week
+    
         />
       </div>
     </div>

@@ -3,7 +3,8 @@ import React, { useEffect, useRef, useState } from 'react'
 // Props:
 // - backendBase: e.g. "https://horai-dun.vercel.app" or "http://localhost:3000"
 // - initialOpen?: boolean
-export default function ChatWidget({ backendBase, initialOpen = false, userID }) {
+export default function ChatWidget({ backendBase, initialOpen = false }) {
+const userID = localStorage.getItem('userID')
   const [open, setOpen] = useState(initialOpen)
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
@@ -61,6 +62,7 @@ export default function ChatWidget({ backendBase, initialOpen = false, userID })
         ...cur,
         { role: 'model', parts: [String(botText)] },
       ])
+
     } catch (e) {
       console.error('Chat error:', e)
       setError(e.message || 'Network error')

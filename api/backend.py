@@ -583,7 +583,7 @@ def chat():
                 # return updated list (including the new task id)
                 doc = users_col.find_one({"_id": uoid}, {"tasks": 1})
                 return jsonify(
-                    {"status": "SUCCESS", "tasks": doc.get("tasks", [])}
+                    {"status": "SUCCESS"}
                 ), 201
 
             # ---------- INTENT: REMOVE ----------
@@ -607,7 +607,7 @@ def chat():
 
                 doc = users_col.find_one({"_id": uoid}, {"tasks": 1})
                 return jsonify(
-                    {"status": "SUCCESS", "tasks": doc.get("tasks", [])}
+                    {"status": "SUCCESS"}
                 ), 200
         else:
             return RETURNS.SUCCESS.return_chat_message(response)

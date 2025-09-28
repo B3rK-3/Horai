@@ -9,6 +9,5 @@ export const endpoints = {
   register: () => `${BACKEND.base}/register`,
   calendarToken: () => `${BACKEND.base}/calendarToken`,
   eventsUnified: () => `${BACKEND.base}/getTasks`,
-  eventsLocalCreate: () => `${BACKEND.localApi}/api/events`,
-  chatbot: () => `${BACKEND.base}/api/chatbot`,
+  canvasToken: () => `${BACKEND.base}/canvasToken`,
 }
