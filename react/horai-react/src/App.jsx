@@ -4,6 +4,7 @@ import Navbar from './components/Navbar'
 import CalendarPage from './pages/CalendarPage'
 import AuthGate from './pages/AuthGate'
 import ConnectionsPage from './pages/ConnectionsPage'
+import ChatWidget from './components/ChatWidget'
 
 export default function App() {
   const [userID, setUserID] = useState(null)
@@ -22,6 +23,7 @@ export default function App() {
     <div id="app">
       <div id="main-app-container" style={{ display: 'block' }}>
         <Navbar onLogout={handleLogout} />
+        <ChatWidget backendBase={'https://horai-dun.vercel.app'}/>
         <div className="container" id="page-content">
           <Routes>
             <Route

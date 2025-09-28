@@ -92,7 +92,7 @@ User wants to auto-schedule flexible tasks:
   "intent": "autoschedule",
   "changes": [
     {
-      "_id": "generated-or-existing-id",
+      "id": "existing-id",
       "source": "manual|google|canvas|ai",
       "externalId": "string|null",
       "title": "Study for physics exam",
