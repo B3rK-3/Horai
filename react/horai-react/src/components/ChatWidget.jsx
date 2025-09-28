@@ -56,7 +56,7 @@ const userID = localStorage.getItem('userID')
       // If your backend returns the full updated convo, adopt it instead.
       const botText =
         data.chatMessage ||
-        '(no response)'
+        'Done'
 
       setConversation(cur => [
         ...cur,
@@ -90,6 +90,7 @@ const userID = localStorage.getItem('userID')
         className="chat-toggle-btn"
         aria-label={open ? 'Close chat' : 'Open chat'}
         onClick={toggle}
+        id='chatBtn'
       >
         {open ? '×' : 'Chat'}
       </button>

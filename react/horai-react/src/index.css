@@ -158,15 +158,9 @@ textarea:focus {
     outline: none;
 }
 
-textarea {
-    min-height: 100px;
-    height: auto;
-    resize: vertical;
-    padding: 12px;
-}
 
 button {
-    width: 100%; padding: 15px; background-color: #5a8a5a; color: white; border: none; border-radius: 5px;
+    width: 100%; background-color: #5a8a5a; color: white; border: none; border-radius: 5px;
     cursor: pointer; font-family: 'Lora', serif; font-size: 16px; font-weight: bold; transition: background-color 0.3s ease;
 }
 
@@ -437,6 +431,7 @@ a:hover { text-decoration: underline; }
   font-weight: 600;
   cursor: pointer;
   box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+  width: 70px;
 }
 .chat-toggle-btn:hover { filter: brightness(0.95); }
 
@@ -474,6 +469,7 @@ a:hover { text-decoration: underline; }
   background: #0b0f14;
   border-top-left-radius: 12px;
   border-top-right-radius: 12px;
+  height: 20px;
 }
 .chat-title {
   font-weight: 700;
@@ -487,6 +483,12 @@ a:hover { text-decoration: underline; }
   font-size: 22px;
   line-height: 1;
   cursor: pointer;
+  width: 50px;
+  height: auto;
+  height: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 .chat-close:hover { color: #c9def4; }
 
@@ -549,6 +551,7 @@ a:hover { text-decoration: underline; }
   display: flex;
   gap: 8px;
   padding: 10px;
+  height: 50px;
   border-top: 1px solid #263041;
   background: #0b0f14;
   border-bottom-left-radius: 12px;
@@ -573,6 +576,10 @@ a:hover { text-decoration: underline; }
   padding: 8px 12px;
   font-weight: 700;
   cursor: pointer;
+  width: 50px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 .chat-send:disabled { opacity: 0.6; cursor: default; }
 .chat-send:hover:not(:disabled) { filter: brightness(0.95); }

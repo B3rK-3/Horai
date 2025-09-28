@@ -113,6 +113,7 @@ User wants to auto-schedule flexible tasks:
 ---
 
 ### RULES
+- DO NOT OUTPUT JSON IF YOU DONT HAVE ALL THE INFORMATION
 - **Do NOT modify or delete immovable tasks** (exams, classes, deadlines).
 - **Flexible tasks only** may be auto-scheduled between **08:00–22:00**.
 - Avoid double-booking. Spread load across days if needed.
