@@ -216,7 +216,6 @@ def gcal_event_to_task(ev, user_oid):
         "dueDate": end_iso[:-9],
         "estimatedMinutes": mins(start_iso, end_iso),
         "minutesTaken": 0,
-        "isFlexible": False,
         "status": "todo",
         "priority": "med",
         "createdAt": now_iso(),
@@ -410,7 +409,6 @@ def fetch_assignments_for_course(
             "dueDate": due_dt.strftime("%Y-%m-%dT%H:%M"),
             "estimatedMinutes": 60,
             "minutesTaken": 0,
-            "isFlexible": True,
             "source": "canvas",
             "status": "todo",
             "priority": "med",
@@ -433,7 +431,6 @@ def normalize_canvas_task(raw: dict) -> dict:
     t.setdefault("priority", "med")
     t.setdefault("estimatedMinutes", 60)
     t.setdefault("minutesTaken", 0)
-    t.setdefault("isFlexible", True)
     t["createdAt"] = now_iso()
     t["updatedAt"] = now_iso()
     return t
@@ -468,7 +465,6 @@ def upsert_canvas_tasks_embedded(users_col, oid, raw_tasks):
                         "tasks.$.endTime": t.get("endTime"),
                         "tasks.$.estimatedMinutes": t.get("estimatedMinutes"),
                         "tasks.$.minutesTaken": t.get("minutesTaken", 0),
-                        "tasks.$.isFlexible": t.get("isFlexible", True),
                         "tasks.$.status": t.get("status", "todo"),
                         "tasks.$.priority": t.get("priority", "med"),
                         "tasks.$.updatedAt": now,
@@ -503,8 +499,10 @@ def classify_tasks_batch(tasks):
     Returns a dict {task_id: isFlexible}
     """
     task_list_str = "\n".join(
-        [f"- ID: {str(t['_id'])}, Title: {t['title']}, Desc: {t.get('description', '')}"
-         for t in tasks]
+        [
+            f"- ID: {str(t['_id'])}, Title: {t['title']}, Desc: {t.get('description', '')}"
+            for t in tasks
+        ]
     )
 
     prompt = f"""
@@ -525,7 +523,7 @@ def classify_tasks_batch(tasks):
     """
 
     response = ask_gemini(prompt)
-    
+
     try:
         data = json.loads(response)
         return {item["id"]: item["isFlexible"] for item in data["results"]}
@@ -533,14 +531,18 @@ def classify_tasks_batch(tasks):
         raise ValueError(f"AI response not valid JSON:\n{response}") from e
 
 
-def run_batch_classification():
+def run_batch_classification(users_col, userID):
     """
     Classifies all Canvas tasks in one batch (or in chunks).
     """
-    tasks = list(tasks_collection.find({
-        "source": "canvas",
-        "isFlexible": {"$exists": False}
-    }))
+    tasks = list(
+        users_col.find(
+            {
+                "_id": as_object_id(userID),
+                "tasks": {"isFlexible": {"$exists": False}},
+            }
+        )
+    )
 
     if not tasks:
         print("No unclassified tasks.")
@@ -551,7 +553,7 @@ def run_batch_classification():
     for task in tasks:
         is_flexible = classification.get(str(task["_id"]))
         if is_flexible is not None:
-            tasks_collection.update_one(
-                {"_id": task["_id"]},
-                {"$set": {"isFlexible": is_flexible}}
+            users_col.update_one(
+                {"_id": as_object_id(userID), "tasks": {"_id": task["_id"]}},
+                {"$set": {"isFlexible": is_flexible}},
             )

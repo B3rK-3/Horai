@@ -24,6 +24,7 @@ from api.functions import (
     upsert_canvas_tasks_embedded,
     ask_gemini,
     parse_ai_response,
+    run_batch_classification
 )
 # from bson import
 
@@ -312,7 +313,7 @@ def pushCanvasToken():
         canvasTasks = getAllCanvasTasks(canvasToken)
         # for each task in canvasTasks push to the tasks inside users document
         upsert_canvas_tasks_embedded(users_col, oid, canvasTasks)
-
+        run_batch_classification(users_col, userID)
         return RETURNS.SUCCESS.return_user_id(userID)
     except BaseException as error:
         print(error)
@@ -450,7 +451,7 @@ def auth_google():
 
         googleTasks = list_events_with_google_client(tokens)
         upsert_google_events_embedded(users_col, oid, googleTasks)
-
+        run_batch_classification(users_col, userID)
         return jsonify(
             {
                 "status": "SUCCESS",
