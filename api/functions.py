@@ -535,7 +535,7 @@ def classify_tasks_batch(tasks):
     }}
     """
 
-    response = ask_gemini(prompt)
+    response = ask_gemini1(prompt)
 
     try:
         data = json.loads(response)
