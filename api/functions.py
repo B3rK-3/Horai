@@ -88,7 +88,7 @@ def hashStr(text: str):
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def ask_gemini(user_message: str, convo: list) -> str:
+def ask_gemini(convo: list, tasks) -> str:
     """
     Send user input to Gemini and return response text.
     """
@@ -96,10 +96,14 @@ def ask_gemini(user_message: str, convo: list) -> str:
 
     # Include system prompt in the first user message
     chat = model.start_chat(
-        history=[{"role": "user", "parts": [SYSTEM_PROMPT]}, *convo]
+        history=[
+            {"role": "user", "parts": [SYSTEM_PROMPT]},
+            {"role": "user", "parts": tasks},
+            *convo[:-1],
+        ]
     )
 
-    response = chat.send_message(user_message)
+    response = chat.send_message(convo[-1]["parts"])
     return response.text
 
 
@@ -385,8 +389,8 @@ def normalize_canvas_task(raw: dict) -> dict:
     #  'dueDate': '2025-10-08T03:59', 'estimatedMinutes': 60, 'minutesTaken': 0,
     #  'isFlexible': True, 'source': 'canvas', 'status': 'todo', 'priority': 'med'}
     t = dict(raw)  # shallow copy
-    t.pop("userId", None)               # userId is redundant in embedded array
-    t["_id"] = ObjectId()               # embedded task id for client round-trips
+    t.pop("userId", None)  # userId is redundant in embedded array
+    t["_id"] = ObjectId()  # embedded task id for client round-trips
     t.setdefault("source", "canvas")
     t.setdefault("status", "todo")
     t.setdefault("priority", "med")
@@ -397,32 +401,60 @@ def normalize_canvas_task(raw: dict) -> dict:
     t["updatedAt"] = now_iso()
     return t
 
+
 def upsert_canvas_tasks_embedded(users_col, oid, raw_tasks):
-    if not raw_tasks: return
+    if not raw_tasks:
+        return
     ops = []
     now = now_iso()
     for rt in raw_tasks:
         t = normalize_canvas_task(rt)
         title = t.get("title")
-        due   = t.get("dueDate")
+        due = t.get("dueDate")
         # Try to update an existing task with same title + dueDate from Canvas
-        ops.append(UpdateOne(
-            {"_id": oid, "tasks": {"$elemMatch": {"source": "canvas", "title": title, "dueDate": due}}},
-            {"$set": {
-                "tasks.$.description": t.get("description"),
-                "tasks.$.startTime": t.get("startTime"),
-                "tasks.$.endTime": t.get("endTime"),
-                "tasks.$.estimatedMinutes": t.get("estimatedMinutes"),
-                "tasks.$.minutesTaken": t.get("minutesTaken", 0),
-                "tasks.$.isFlexible": t.get("isFlexible", True),
-                "tasks.$.status": t.get("status", "todo"),
-                "tasks.$.priority": t.get("priority", "med"),
-                "tasks.$.updatedAt": now,
-            }}
-        ))
+        ops.append(
+            UpdateOne(
+                {
+                    "_id": oid,
+                    "tasks": {
+                        "$elemMatch": {
+                            "source": "canvas",
+                            "title": title,
+                            "dueDate": due,
+                        }
+                    },
+                },
+                {
+                    "$set": {
+                        "tasks.$.description": t.get("description"),
+                        "tasks.$.startTime": t.get("startTime"),
+                        "tasks.$.endTime": t.get("endTime"),
+                        "tasks.$.estimatedMinutes": t.get("estimatedMinutes"),
+                        "tasks.$.minutesTaken": t.get("minutesTaken", 0),
+                        "tasks.$.isFlexible": t.get("isFlexible", True),
+                        "tasks.$.status": t.get("status", "todo"),
+                        "tasks.$.priority": t.get("priority", "med"),
+                        "tasks.$.updatedAt": now,
+                    }
+                },
+            )
+        )
         # If none matched, push a new one
-        ops.append(UpdateOne(
-            {"_id": oid, "tasks": {"$not": {"$elemMatch": {"source": "canvas", "title": title, "dueDate": due}}}},
-            {"$push": {"tasks": t}, "$set": {"updatedAt": now}}
-        ))
+        ops.append(
+            UpdateOne(
+                {
+                    "_id": oid,
+                    "tasks": {
+                        "$not": {
+                            "$elemMatch": {
+                                "source": "canvas",
+                                "title": title,
+                                "dueDate": due,
+                            }
+                        }
+                    },
+                },
+                {"$push": {"tasks": t}, "$set": {"updatedAt": now}},
+            )
+        )
     users_col.bulk_write(ops, ordered=False)

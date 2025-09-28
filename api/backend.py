@@ -22,6 +22,7 @@ from functions import (
     list_events_with_google_client,
     getAllCanvasTasks,
     upsert_canvas_tasks_embedded,
+    ask_gemini
 )
 # from bson import
 
@@ -462,9 +463,31 @@ def chat():
         conversation = payload["convo"]
         userID = payload["userID"]
 
-        response = geminiChat.getConvoResponse(
-            conversation
-        )  # should give the chatbot the tasks
+        try:
+            uoid = ObjectId(userID)
+        except Exception:
+            return RETURNS.ERRORS.bad_userID()
+
+        doc = users_col.find_one({"_id": uoid}, {"tasks": 1})
+        if not doc:
+            return RETURNS.ERRORS.bad_login()
+
+        tasks = []
+        for t in doc.get("tasks", []):
+            tasks.append(
+                {
+                    "id": str(t["_id"]),
+                    "title": t.get("title"),
+                    "desc": t.get("description"),
+                    "startTime": t.get("startTime"),
+                    "endTime": t.get("endTime"),
+                    "dueDate": t.get("dueDate"),
+                    "priority": t.get("priority", "med"),
+                }
+            )
+        
+        response = ask_gemini(conversation, tasks)
+
 
     except BaseException as error:
         print(error)
