@@ -11,7 +11,7 @@ from google.auth.transport import requests as grequests
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
-from pymongo import MongoClient, ASCENDING, errors
+from pymongo import MongoClient, ASCENDING, errors, UpdateOne
 from bson import ObjectId
 from flask_cors import CORS
 # from bson import
@@ -32,32 +32,38 @@ mongo = MongoClient(MONGODB_URI)
 db = mongo[DB_NAME]
 users_col = db["users"]
 """
-users { "_id": ObjectId, 
-"email": "string", 
-"hashedPass": "string", 
-"google": { {"token": "", "refresh_token": "", "client_id": "", "client_secret": "", "scopes": ["https://www.googleapis.com/auth/calendar.readonly"], "universe_domain": "googleapis.com", "account": "", "expiry": ""} }, 
-"canvas": { "base_url": "string", "access_token": "string" }, 
-"createdAt": "ISO8601", 
-"updatedAt": "ISO8601"
+users {
+  _id: ObjectId,
+  email: string,
+  hashedPass: string,
+  google: {...},
+  canvas: {...},
+  createdAt: ISO8601,
+  updatedAt: ISO8601,
+
+  tasks: [  // embedded array
+    {
+      _id: ObjectId,            // per-task id you return to the client
+      source: "manual|google|canvas|ai",
+      externalId: "string|null",// e.g., Google event id for de-dupe
+      title: string,
+      description: string,
+      startTime: ISO8601|null,
+      endTime: ISO8601|null,
+      dueDate: ISO8601|null,
+      estimatedMinutes: number,
+      minutesTaken: number,
+      isFlexible: bool,
+      status: "todo|in_progress|done",
+      priority: "low|med|high",
+      createdAt: ISO8601,
+      updatedAt: ISO8601
+    }
+  ]
+}
+
 """
-tasks_col = db["tasks"]
-"""
-tasks { "_id": ObjectId, 
-"userId": ObjectId, 
-"title": "string", 
-"description": "string", 
-"startTime": "ISO8601|null", 
-"endTime": "ISO8601|null", 
-"dueDate": "ISO8601|null",
-"estimatedMinutes": 60, 
-"minutesTaken": 0,
-"isFlexible": true, 
-"source": "manual|google|canvas|ai", 
-"status": "todo|in_progress|done",
-"priority": "low|med|high", 
-"createdAt": "ISO8601",
-"updatedAt": "ISO8601" }
-"""
+
 # Ensure email uniqueness
 try:
     users_col.create_index([("email", ASCENDING)], unique=True)
@@ -66,7 +72,8 @@ except Exception as e:
 
 
 def now_iso():
-    return datetime.now(timezone.utc).isoformat()[:-16]
+    # ISO8601 to seconds, with timezone Z
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 # ---------- Response helpers ----------
@@ -200,6 +207,96 @@ def as_object_id(maybe_id: str):
         return ObjectId(maybe_id)
     except Exception:
         return None
+
+
+def gcal_event_to_task(ev, user_oid):
+    start_iso = ev.get("start", {}).get("dateTime") or (
+        ev.get("start", {}).get("date") and f"{ev['start']['date']}T00:00:00Z"
+    )
+    end_iso = ev.get("end", {}).get("dateTime") or (
+        ev.get("end", {}).get("date") and f"{ev['end']['date']}T00:00:00Z"
+    )
+    title = ev.get("summary") or "(No title)"
+    desc = ev.get("description") or ""
+    link = ev.get("htmlLink")
+    if link:
+        desc = (desc + "\n\n" if desc else "") + f"Event: {link}"
+
+    # quick duration estimate
+    def mins(a, b):
+        try:
+            s = datetime.fromisoformat(a.replace("Z", "+00:00")) if a else None
+            e = datetime.fromisoformat(b.replace("Z", "+00:00")) if b else None
+            return max(15, int((e - s).total_seconds() // 60)) if s and e else 60
+        except:
+            return 60
+
+    return {
+        "_id": ObjectId(),  # new task id if we end up pushing
+        "source": "google",
+        "externalId": ev.get("id"),
+        "title": title,
+        "description": desc,
+        "startTime": start_iso,
+        "endTime": end_iso,
+        "dueDate": end_iso,
+        "estimatedMinutes": mins(start_iso, end_iso),
+        "minutesTaken": 0,
+        "isFlexible": False,
+        "status": "todo",
+        "priority": "med",
+        "createdAt": now_iso(),
+        "updatedAt": now_iso(),
+    }
+
+
+def upsert_google_events_embedded(user_oid, events):
+    ops = []
+    for ev in events:
+        doc = gcal_event_to_task(ev, user_oid)
+        # First: try to update existing element with same externalId
+        ops.append(
+            UpdateOne(
+                {
+                    "_id": user_oid,
+                    "tasks.externalId": doc["externalId"],
+                    "tasks.source": "google",
+                },
+                {
+                    "$set": {
+                        "tasks.$[e].title": doc["title"],
+                        "tasks.$[e].description": doc["description"],
+                        "tasks.$[e].startTime": doc["startTime"],
+                        "tasks.$[e].endTime": doc["endTime"],
+                        "tasks.$[e].dueDate": doc["dueDate"],
+                        "tasks.$[e].estimatedMinutes": doc["estimatedMinutes"],
+                        "tasks.$[e].updatedAt": now_iso(),
+                    }
+                },
+                array_filters=[
+                    {"e.externalId": doc["externalId"], "e.source": "google"}
+                ],
+            )
+        )
+        # Second op: if none matched, push a new one (won't hurt if first already matched)
+        ops.append(
+            UpdateOne(
+                {
+                    "_id": user_oid,
+                    "tasks": {
+                        "$not": {
+                            "$elemMatch": {
+                                "externalId": doc["externalId"],
+                                "source": "google",
+                            }
+                        }
+                    },
+                },
+                {"$push": {"tasks": doc}},
+            )
+        )
+    if ops:
+        users_col.bulk_write(ops, ordered=False)
 
 
 def list_events_with_google_client(tokens: dict, tz="America/New_York"):
@@ -387,34 +484,35 @@ def pushCanvasToken():
 def getTasks():
     try:
         payload = request.get_json(force=True)
-        userID = payload["userID"]
+        userID = payload.get("userID")
+        if not userID:
+            return RETURNS.ERRORS.bad_request("userID is required")
         try:
             uoid = ObjectId(userID)
         except Exception:
             return RETURNS.ERRORS.bad_userID()
 
-        # get all tasks for this user
-        cursor = tasks_col.find({"userId": uoid})
+        doc = users_col.find_one({"_id": uoid}, {"tasks": 1})
+        if not doc:
+            return RETURNS.ERRORS.bad_login()
+
         tasks = []
-        for t in cursor:
-            tasks.append(
-                {
-                    "id": str(t["_id"]),  # send _id back to client
-                    "title": t.get("title"),
-                    "desc": t.get("description"),
-                    "startTime": t.get("startTime"),
-                    "endTime": t.get("endTime"),
-                    "dueDate": t.get("dueDate"),
-                    "priority": t.get("priority", "med"),
-                }
-            )
+        for t in doc.get("tasks", []):
+            tasks.append({
+                "id": str(t["_id"]),
+                "title": t.get("title"),
+                "desc": t.get("description"),
+                "startTime": t.get("startTime"),
+                "endTime": t.get("endTime"),
+                "dueDate": t.get("dueDate"),
+                "priority": t.get("priority", "med"),
+            })
 
         return RETURNS.SUCCESS.return_tasks(tasks)
 
     except Exception as e:
         print(e)
         return RETURNS.ERRORS.internal_error()
-
 
 @app.route("/calendarToken", methods=["POST"])
 def auth_google():
@@ -476,12 +574,14 @@ def auth_google():
         if res.matched_count == 0:
             return RETURNS.ERRORS.bad_login()  # user not found
 
+        googleTasks = list_events_with_google_client(tokens)
+        upsert_google_events_embedded(oid, googleTasks)
+
         return jsonify(
             {
                 "status": "SUCCESS",
                 "message": "GOOGLE TOKENS SAVED",
                 "expiresAt": expires_at,
-                "googleTasks": list_events_with_google_client(tokens),
                 "hasRefreshToken": bool(refresh_token),
             }
         ), 200
