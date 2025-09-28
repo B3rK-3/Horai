@@ -532,28 +532,49 @@ def classify_tasks_batch(tasks):
 
 
 def run_batch_classification(users_col, userID):
-    """
-    Classifies all Canvas tasks in one batch (or in chunks).
-    """
-    tasks = list(
-        users_col.find(
-            {
-                "_id": as_object_id(userID),
-                "tasks": {"isFlexible": {"$exists": False}},
-            }
-        )
-    )
+    oid = ObjectId(userID)
 
-    if not tasks:
-        print("No unclassified tasks.")
+    # 1) Get the user's tasks array
+    doc = users_col.find_one({"_id": oid}, {"tasks": 1})
+    if not doc or "tasks" not in doc:
+        print("No tasks for user.")
         return
 
-    classification = classify_tasks_batch(tasks)
+    # 2) Pick tasks missing isFlexible (optionally also source == 'canvas')
+    pending = [t for t in (doc.get("tasks") or []) if "isFlexible" not in t]
+    if not pending:
+        print("No unclassified tasks.")
+        return
+    print(pending)
 
-    for task in tasks:
-        is_flexible = classification.get(str(task["_id"]))
-        if is_flexible is not None:
-            users_col.update_one(
-                {"_id": as_object_id(userID), "tasks": {"_id": task["_id"]}},
-                {"$set": {"isFlexible": is_flexible}},
+    # 3) Classify (whatever your classifier needs; here we pass the raw items)
+    classification = classify_tasks_batch(
+        pending
+    )  # expected: { "<task_id_str>": True/False, ... }
+
+    # 4) Bulk update embedded elements using positional $
+    ops = []
+    ts = now_iso()
+    for t in pending:
+        tid = t["_id"]  # ObjectId in embedded task
+        key = str(tid)  # your classifier keyed by string
+        is_flex = classification.get(key)
+        if is_flex is None:
+            continue
+        ops.append(
+            UpdateOne(
+                {"_id": oid, "tasks._id": tid},
+                {
+                    "$set": {
+                        "tasks.$.isFlexible": bool(is_flex),
+                        "tasks.$.updatedAt": ts,
+                    }
+                },
             )
+        )
+
+    if ops:
+        res = users_col.bulk_write(ops, ordered=False)
+        print(f"updated: {res.modified_count}")
+    else:
+        print("Nothing to update.")
