@@ -500,6 +500,7 @@ def chat():
                     "endTime": t.get("endTime"),
                     "dueDate": t.get("dueDate"),
                     "priority": t.get("priority", "med"),
+                    "isFlexible": t.get("isFlexible")
                 }
             )
 
