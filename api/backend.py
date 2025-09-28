@@ -14,6 +14,15 @@ from googleapiclient.discovery import build
 from pymongo import MongoClient, ASCENDING, errors, UpdateOne
 from bson import ObjectId
 from flask_cors import CORS
+from functions import (
+    now_iso,
+    hashStr,
+    as_object_id,
+    upsert_google_events_embedded,
+    list_events_with_google_client,
+    getAllCanvasTasks,
+    upsert_canvas_tasks_embedded,
+)
 # from bson import
 
 # import geminiChat  # NOTE: THIS IS THE PYTHON FILE THAT HANDLES GEMINI COMMUNICATION
@@ -69,11 +78,6 @@ try:
     users_col.create_index([("email", ASCENDING)], unique=True)
 except Exception as e:
     print("Index creation warning:", e)
-
-
-def now_iso():
-    # ISO8601 to seconds, with timezone Z
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 # ---------- Response helpers ----------
@@ -196,159 +200,6 @@ class RETURNS:
             ), 200
 
 
-# ---------- Util ----------
-def hashStr(text: str):
-    """SHA-256 (consider bcrypt/argon2 for production)"""
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
-
-
-def as_object_id(maybe_id: str):
-    try:
-        return ObjectId(maybe_id)
-    except Exception:
-        return None
-
-
-def gcal_event_to_task(ev, user_oid):
-    start_iso = ev.get("start", {}).get("dateTime") or (
-        ev.get("start", {}).get("date") and f"{ev['start']['date']}T00:00:00Z"
-    )
-    end_iso = ev.get("end", {}).get("dateTime") or (
-        ev.get("end", {}).get("date") and f"{ev['end']['date']}T00:00:00Z"
-    )
-    title = ev.get("summary") or "(No title)"
-    desc = ev.get("description") or ""
-    link = ev.get("htmlLink")
-    if link:
-        desc = (desc + "\n\n" if desc else "") + f"Event: {link}"
-
-    # quick duration estimate
-    def mins(a, b):
-        try:
-            s = datetime.fromisoformat(a.replace("Z", "+00:00")) if a else None
-            e = datetime.fromisoformat(b.replace("Z", "+00:00")) if b else None
-            return max(15, int((e - s).total_seconds() // 60)) if s and e else 60
-        except:
-            return 60
-
-    return {
-        "_id": ObjectId(),  # new task id if we end up pushing
-        "source": "google",
-        "externalId": ev.get("id"),
-        "title": title,
-        "description": desc,
-        "startTime": start_iso,
-        "endTime": end_iso,
-        "dueDate": end_iso,
-        "estimatedMinutes": mins(start_iso, end_iso),
-        "minutesTaken": 0,
-        "isFlexible": False,
-        "status": "todo",
-        "priority": "med",
-        "createdAt": now_iso(),
-        "updatedAt": now_iso(),
-    }
-
-
-def upsert_google_events_embedded(user_oid, events):
-    ops = []
-    for ev in events:
-        doc = gcal_event_to_task(ev, user_oid)
-        # First: try to update existing element with same externalId
-        ops.append(
-            UpdateOne(
-                {
-                    "_id": user_oid,
-                    "tasks.externalId": doc["externalId"],
-                    "tasks.source": "google",
-                },
-                {
-                    "$set": {
-                        "tasks.$[e].title": doc["title"],
-                        "tasks.$[e].description": doc["description"],
-                        "tasks.$[e].startTime": doc["startTime"],
-                        "tasks.$[e].endTime": doc["endTime"],
-                        "tasks.$[e].dueDate": doc["dueDate"],
-                        "tasks.$[e].estimatedMinutes": doc["estimatedMinutes"],
-                        "tasks.$[e].updatedAt": now_iso(),
-                    }
-                },
-                array_filters=[
-                    {"e.externalId": doc["externalId"], "e.source": "google"}
-                ],
-            )
-        )
-        # Second op: if none matched, push a new one (won't hurt if first already matched)
-        ops.append(
-            UpdateOne(
-                {
-                    "_id": user_oid,
-                    "tasks": {
-                        "$not": {
-                            "$elemMatch": {
-                                "externalId": doc["externalId"],
-                                "source": "google",
-                            }
-                        }
-                    },
-                },
-                {"$push": {"tasks": doc}},
-            )
-        )
-    if ops:
-        users_col.bulk_write(ops, ordered=False)
-
-
-def list_events_with_google_client(tokens: dict, tz="America/New_York"):
-    """
-    tokens: {
-      "access_token": "...",
-      "refresh_token": "...",     # present if you requested offline access
-      "token_uri": "https://oauth2.googleapis.com/token",
-      "client_id": "<YOUR_CLIENT_ID>",
-      "client_secret": "<YOUR_CLIENT_SECRET>",   # not needed if you used PKCE confidentially, but include if you have it
-      "scopes": ["https://www.googleapis.com/auth/calendar.readonly"],
-      "expiry": None              # optional ISO string; library updates this after refresh
-    }
-    """
-    # Build Credentials object directly from your token dict:
-    creds = Credentials(
-        tokens["access_token"],
-        refresh_token=tokens.get("refresh_token"),
-        token_uri=tokens.get("token_uri", "https://oauth2.googleapis.com/token"),
-        client_id=tokens.get("client_id"),
-        client_secret=tokens.get("client_secret"),
-        scopes=tokens.get("scopes")
-        or ["https://www.googleapis.com/auth/calendar.readonly"],
-    )
-
-    service = build("calendar", "v3", credentials=creds)
-
-    time_min = datetime.now(timezone.utc).isoformat()
-    time_max = (datetime.now(timezone.utc) + timedelta(days=14)).isoformat()
-
-    events = []
-    page_token = None
-    resp = (
-        service.events()
-        .list(
-            calendarId="primary",
-            singleEvents=True,
-            orderBy="startTime",
-            timeZone=tz,
-            timeMin=time_min,
-            timeMax=time_max,
-            pageToken=page_token,
-            maxResults=2500,
-        )
-        .execute()
-    )
-
-    events.extend(resp.get("items", []))
-
-    return events
-
-
 # ---------- Routes ----------
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 
@@ -440,7 +291,9 @@ def pushCanvasToken():
         if res.matched_count == 0:
             return RETURNS.ERRORS.bad_login()  # user not found
 
-        # TODO: call canvas function to get events
+        canvasTasks = getAllCanvasTasks(canvasToken)
+        # for each task in canvasTasks push to the tasks inside users document
+        upsert_canvas_tasks_embedded(users_col, oid, canvasTasks)
 
         return RETURNS.SUCCESS.return_user_id(userID)
     except BaseException as error:
@@ -498,21 +351,24 @@ def getTasks():
 
         tasks = []
         for t in doc.get("tasks", []):
-            tasks.append({
-                "id": str(t["_id"]),
-                "title": t.get("title"),
-                "desc": t.get("description"),
-                "startTime": t.get("startTime"),
-                "endTime": t.get("endTime"),
-                "dueDate": t.get("dueDate"),
-                "priority": t.get("priority", "med"),
-            })
+            tasks.append(
+                {
+                    "id": str(t["_id"]),
+                    "title": t.get("title"),
+                    "desc": t.get("description"),
+                    "startTime": t.get("startTime"),
+                    "endTime": t.get("endTime"),
+                    "dueDate": t.get("dueDate"),
+                    "priority": t.get("priority", "med"),
+                }
+            )
 
         return RETURNS.SUCCESS.return_tasks(tasks)
 
     except Exception as e:
         print(e)
         return RETURNS.ERRORS.internal_error()
+
 
 @app.route("/calendarToken", methods=["POST"])
 def auth_google():
@@ -575,7 +431,7 @@ def auth_google():
             return RETURNS.ERRORS.bad_login()  # user not found
 
         googleTasks = list_events_with_google_client(tokens)
-        upsert_google_events_embedded(oid, googleTasks)
+        upsert_google_events_embedded(users_col, oid, googleTasks)
 
         return jsonify(
             {
