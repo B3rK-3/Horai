@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { endpoints } from '../api'
 import BigCalendar from '../components/BigCalendar'
+import ToastCalendar from '../components/ToastCalendar'
 
 export default function CalendarPage({ userID }) {
   const [events, setEvents] = useState([])
@@ -55,12 +56,13 @@ export default function CalendarPage({ userID }) {
       {error && <p style={{marginTop:8,color:'crimson'}}>{error}</p>}
 
       <div className="schedule-grid-container">
-        <BigCalendar
+        <ToastCalendar
           events={events}
           date={date}
           onNavigate={setDate}
           onSelectEvent={(evt) => console.log('selected event', evt)}
           onSelectSlot={(slot) => console.log('selected slot', slot)}
+          week
         />
       </div>
     </div>

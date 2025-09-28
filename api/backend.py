@@ -539,7 +539,7 @@ def chat():
                 # return updated list
                 doc = users_col.find_one({"_id": uoid}, {"tasks": 1})
                 return jsonify(
-                    {"status": "SUCCESS", "tasks": doc.get("tasks", [])}
+                    {"status": "SUCCESS"}
                 ), 200
 
             # ---------- INTENT: ADD ----------

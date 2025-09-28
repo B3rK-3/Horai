@@ -143,6 +143,7 @@ def ask_gemini(convo: list, tasks) -> str:
             *convo[:-1],
         ]
     )
+    print(convo)
 
     response = chat.send_message(convo[-1]["parts"])
     return response.text
