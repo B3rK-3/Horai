@@ -14,7 +14,7 @@ from googleapiclient.discovery import build
 from pymongo import MongoClient, ASCENDING, errors, UpdateOne
 from bson import ObjectId
 from flask_cors import CORS
-from functions import (
+from api.functions import (
     now_iso,
     hashStr,
     as_object_id,
@@ -22,7 +22,7 @@ from functions import (
     list_events_with_google_client,
     getAllCanvasTasks,
     upsert_canvas_tasks_embedded,
-    ask_gemini
+    ask_gemini,
 )
 # from bson import
 
@@ -35,18 +35,11 @@ app = Flask(__name__)
 CORS(
     app,
     resources={
-        r"/*": {
-            "origins": [
-                "http://localhost:3000",
-                "https://horai-dun.vercel.app",  # if you also call from this origin
-            ]
+        r"/api/*": {
+            "origins": ["http://localhost:3000", "https://horai-dun.vercel.app"]
         }
     },
-    supports_credentials=True,  # needed if you use cookies or credentials: 'include'
-    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization"],
-    expose_headers=["Content-Type"],
-    max_age=86400,
+    supports_credentials=True,
 )
 
 MONGODB_URI = os.getenv("MONGODB_URI")
@@ -501,9 +494,8 @@ def chat():
                     "priority": t.get("priority", "med"),
                 }
             )
-        
-        response = ask_gemini(conversation, tasks)
 
+        response = ask_gemini(conversation, tasks)
 
     except BaseException as error:
         print(error)
