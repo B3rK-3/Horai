@@ -538,7 +538,7 @@ def classify_tasks_batch(tasks):
     response = ask_gemini1(prompt)
 
     try:
-        data = json.loads(response)
+        data = parse_ai_response(response)
         return {item["id"]: item["isFlexible"] for item in data["results"]}
     except Exception as e:
         raise ValueError(f"AI response not valid JSON:\n{response}") from e
