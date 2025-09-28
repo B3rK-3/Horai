@@ -43,4 +43,4 @@ users_col = db["users"]
 upsert_canvas_tasks_embedded(
     users_col, as_object_id("68d88841c740ba7296bf10cd"), e
 )
-print(as_object_id("68d88841c740ba7296bf10cd"))
+print()
