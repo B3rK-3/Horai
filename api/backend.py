@@ -610,6 +610,76 @@ def chat():
                 return jsonify(
                     {"status": "SUCCESS"}
                 ), 200
+            elif intent == "autoschedule":
+                # expects:
+                # {
+                #   "intent": "autoschedule",
+                #   "changes": [
+                #     {
+                #       "id": "<embedded task _id string>",
+                #       "title": "...", "description": "...",
+                #       "startTime": "ISO", "endTime": "ISO", "dueDate": "ISO",
+                #       "estimatedMinutes": 120, "minutesTaken": 0,
+                #       "isFlexible": true, "status": "todo", "priority": "med",
+                #       "source": "...", "externalId": "..."
+                #     },
+                #     ...
+                #   ]
+                # }
+
+                changes = aiResponse.get("changes") or []
+                if not isinstance(changes, list) or not changes:
+                    return RETURNS.ERRORS.bad_request("changes must be a non-empty list")
+
+                from pymongo import UpdateOne
+                ops = []
+                now = now_iso()
+
+                # Only allow updating these fields on embedded tasks
+                updatable = {
+                    "title", "description",
+                    "startTime", "endTime", "dueDate",
+                    "estimatedMinutes", "minutesTaken",
+                    "isFlexible", "status", "priority",
+                    # you can allow these if your AI legitimately edits them:
+                    "source", "externalId",
+                }
+
+                for ch in changes:
+                    tid_str = ch.get("id")
+                    try:
+                        tid = ObjectId(tid_str)
+                    except Exception:
+                        return RETURNS.ERRORS.bad_request(f"invalid task id: {tid_str}")
+
+                    # Build per-task $set payload for the positional element
+                    set_fields = {}
+                    for k, v in ch.items():
+                        if k in updatable:
+                            set_fields[f"tasks.$.{k}"] = v
+                    if not set_fields:
+                        # nothing to update for this change
+                        continue
+                    set_fields["tasks.$.updatedAt"] = now
+
+                    ops.append(UpdateOne(
+                        {"_id": uoid, "tasks._id": tid},
+                        {"$set": set_fields}
+                    ))
+
+                if not ops:
+                    return RETURNS.ERRORS.bad_request("no valid changes to apply")
+
+                try:
+                    result = users_col.bulk_write(ops, ordered=False)
+                    # Optional: print summary
+                    print(f"autoschedule: matched {result.matched_count}, modified {result.modified_count}")
+                except Exception as e:
+                    print("autoschedule bulk error:", e)
+                    return RETURNS.ERRORS.internal_error()
+
+                return jsonify({"status": "SUCCESS"}), 200
+
         else:
             return RETURNS.SUCCESS.return_chat_message(response)
     except Exception as e:
