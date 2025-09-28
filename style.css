@@ -1,0 +1,354 @@
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,700;1,400&display=swap');
+
+body {
+    font-family: 'Lora', serif;
+    background-color: #f0f4f0;
+    color: #333;
+    display: flex;
+    justify-content: center;
+    margin: 0;
+    background-image: url('https://www.transparenttextures.com/patterns/light-paper-fibers.png');
+}
+
+#app {
+    width: 100%;
+    max-width: 400px;
+    transition: max-width 0.5s ease-in-out;
+    height: 100%;
+}
+
+body.loggedin #app { max-width: 100%; height: 100%; display: block; }
+
+/* --- LOGIN/REGISTER STYLES (ORIGINAL STATE RESTORED) --- */
+.login-register-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
+    background-color: #ffffff;
+    padding: 40px;
+    border-radius: 10px;
+    text-align: center;
+}
+
+.container {
+    padding: 40px;
+    border-radius: 10px;
+    text-align: center;
+}
+
+h1 { color: #2d5a2d; margin-bottom: 10px; }
+p { color: #555; margin-bottom: 30px; }
+
+/* RESTORED LOGIN/REGISTER INPUTS */
+input[type="text"], input[type="email"], input[type="password"] {
+    width: 100%; 
+    padding: 15px; 
+    margin-bottom: 20px; 
+    border: 1px solid #ccc; 
+    border-radius: 5px;
+    box-sizing: border-box; 
+    font-family: 'Lora', serif;
+}
+
+/* --- ADD EVENT FORM INPUTS & SELECTS (UNIFORM STYLING) --- */
+input[type="date"], 
+input[type="datetime-local"], 
+select, 
+textarea {
+    width: 100%; 
+    padding: 12px; 
+    margin-bottom: 0;
+    border: 1px solid #ccc; 
+    border-radius: 5px;
+    box-sizing: border-box; 
+    font-family: 'Lora', serif;
+    transition: border-color 0.3s;
+}
+
+/* Apply specific uniform height to date/time/select controls */
+input[type="date"], 
+input[type="datetime-local"], 
+select {
+    height: 40px;
+}
+
+
+input[type="text"]:focus, 
+input[type="email"]:focus, 
+input[type="password"]:focus,
+input[type="date"]:focus, 
+input[type="datetime-local"]:focus, 
+select:focus, 
+textarea:focus {
+    border-color: #5a8a5a; 
+    outline: none;
+}
+
+textarea {
+    min-height: 100px;
+    height: auto;
+    resize: vertical;
+    padding: 12px;
+}
+
+button {
+    width: 100%; padding: 15px; background-color: #5a8a5a; color: white; border: none; border-radius: 5px;
+    cursor: pointer; font-family: 'Lora', serif; font-size: 16px; font-weight: bold; transition: background-color 0.3s ease;
+}
+
+button:hover { background-color: #4a7a4a; }
+
+a { color: #5a8a5a; text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* --- NAVIGATION BAR --- */
+.navbar {
+    background-color: #ffffff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 0 20px;
+    position: fixed; 
+    top: 0;
+    left: 0; 
+    width: 100%;
+    z-index: 1000; 
+}
+
+.navbar .navbar-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px; 
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.navbar .brand { font-size: 24px; font-weight: bold; color: #2d5a2d; }
+.navbar .brand:hover { text-decoration: none; }
+
+.nav-links { list-style: none; display: flex; margin: 0; padding: 0; }
+.nav-links li a { padding: 10px 15px; display: block; color: #333; font-weight: bold; }
+.nav-links li a.active { color: #5a8a5a; text-decoration: none; }
+
+#page-content { 
+    margin-top: 80px; 
+    max-width: 1200px; 
+    margin-left: auto; 
+    margin-right: auto; 
+    text-align: left; 
+    padding: 0 20px 40px; 
+}
+
+/* --- TO-DO LIST & EVENT FORMS --- */
+#event-list { list-style: none; padding: 0; }
+#event-list li { background-color: #f9f9f9; border-left: 4px solid #5a8a5a; padding: 15px; margin-bottom: 10px; border-radius: 0 5px 5px 0; display: flex; justify-content: space-between; align-items: center; }
+.delete-btn { background-color: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 12px; }
+.delete-btn:hover { background-color: #c0392b; }
+
+#add-event-page {
+    padding: 20px; 
+    background-color: #f7fcf7; 
+    border-radius: 8px;
+}
+
+.event-form { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 12px; 
+    padding: 20px;
+    border: 1px solid #e0e9e0; 
+    border-radius: 6px;
+    margin-top: 20px;
+}
+
+.form-row { 
+    display: flex; 
+    gap: 15px; 
+}
+
+.form-group { 
+    flex: 1; 
+    display: flex; 
+    flex-direction: column; 
+}
+.form-group label { 
+    margin-bottom: 5px; 
+    color: #2d5a2d; 
+    font-size: 14px; 
+    font-weight: bold; 
+    text-align: left;
+}
+
+.divider { border: 0; height: 1px; background: #c7d8c7; margin: 30px 0; }
+.bot-section { display: flex; flex-direction: column; gap: 20px; }
+.bot-section h3 { text-align: center; color: #2d5a2d; }
+.bot-section p { text-align: center; margin-bottom: 10px; }
+
+
+/* --- SCHEDULE/CALENDAR VIEW --- */
+
+#calendar-page{
+    width: 100%;
+}
+
+#calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+#calendar-header h2 {
+    margin: 0;
+    color: #2d5a2d;
+}
+
+#calendar-header button {
+    width: auto;
+    padding: 5px 15px;
+}
+
+.schedule-grid-container {
+    display: grid;
+    grid-template-columns: 50px repeat(7, 1fr); 
+    border: 1px solid #ccc;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+    background-color: #fff;
+}
+
+#calendar-weekdays {
+    display: grid;
+    grid-template-columns: 50px repeat(7, 1fr); 
+    grid-column: 1 / -1; 
+    border-bottom: 1px solid #ccc;
+}
+
+#calendar-weekdays div {
+    font-weight: bold;
+    text-align: center;
+    padding: 10px 0;
+    color: #555;
+    border-bottom: 1px solid #ccc;
+}
+#calendar-weekdays div:first-child { 
+    border-right: 1px solid #ccc;
+    visibility: hidden; 
+}
+
+#calendar-grid {
+    display: grid;
+    grid-template-columns: 50px repeat(7, 1fr);
+    grid-column: 1 / -1; 
+}
+
+.time-axis-cell {
+    grid-column: 1 / 2; 
+    border-right: 1px solid #eee;
+    text-align: right;
+    padding-right: 5px;
+    height: 60px; 
+    font-size: 10px;
+    color: #888;
+    position: relative;
+    box-sizing: border-box;
+}
+
+.time-axis-cell:not(:first-of-type) {
+    border-top: 1px dashed #eee;
+}
+
+.schedule-day-cell {
+    position: relative; 
+    border-top: 1px dashed #eee; 
+    height: 60px; 
+    box-sizing: border-box;
+}
+
+.schedule-day-cell {
+    position: relative; 
+    border-top: 1px dashed #eee; 
+    height: 60px; 
+    box-sizing: border-box;
+    border-left: 1px solid #f0f0f0;
+}
+
+.schedule-day-cell:nth-child(8n + 2) {
+    border-left: none; 
+}
+
+.schedule-day-cell:nth-child(8n) { 
+    border-right: 1px solid #f0f0f0; 
+}
+
+.schedule-event {
+    position: absolute;
+    width: 95%; 
+    margin-left: 2.5%;
+    padding: 2px 5px;
+    background-color: #d8f5d0; 
+    border-left: 3px solid #5a8a5a;
+    border-radius: 4px;
+    font-size: 11px;
+    line-height: 1.2;
+    overflow: hidden;
+    z-index: 10;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+#chatbot-page {
+    /* Uses Flexbox to separate chat history from the input area */
+    display: flex;
+    flex-direction: column;
+    /* Calculate remaining viewport height for the chat window to fill space */
+    height: calc(100vh - 180px); 
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+#chat-window {
+    flex-grow: 1; 
+    overflow-y: auto;
+    padding: 15px;
+    background-color: #ffffff;
+    border: 1px solid #e0e9e0;
+    border-radius: 6px 6px 0 0; 
+    margin-bottom: 0; 
+}
+
+
+#chat-form {
+    display: flex;
+    padding: 10px;
+    background-color: #fff;
+    border: 1px solid #e0e9e0;
+    border-top: none;
+    border-radius: 0 0 6px 6px; 
+    align-items: flex-end; 
+}
+
+#chat-input {
+    flex-grow: 1; 
+    margin-bottom: 0 !important; 
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    resize: none; 
+    height: 50px; 
+}
+
+#chat-form button {
+    width: 80px; 
+    height: 50px; 
+    padding: 0;
+    margin-left: 10px;
+    flex-shrink: 0; 
+    font-size: 14px;
+}
+
+.chat-message {
+    padding: 10px 15px;
+    margin-bottom: 10px;
+    border-radius: 15px; 
+    max-width: 75%;
+    word-wrap: break-word;
+}

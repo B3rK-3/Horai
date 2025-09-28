@@ -1,0 +1,24 @@
+{
+  "name": "horai",
+  "version": "1.0.0",
+  "description": "A calendar optimizer with a Greek goddess theme.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "calendar",
+    "optimizer",
+    "chatbot"
+  ],
+  "proxy": "http://localhost:3000",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "chrono-node": "^2.9.0",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "express-session": "^1.18.2",
+    "googleapis": "^105.0.0",
+    "mongoose": "^8.18.2"
+  }
+}

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Horai - Your Personal Time Weaver</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <div class="container login-register-container" id="login-container">
+            <h1>Welcome to Horai</h1>
+            <p>Let the goddesses of time guide your day.</p>
+            <form id="login-form">
+                <input type="email" placeholder="Email" required>
+                <input type="password" placeholder="Password" required>
+                <button type="submit">Log In</button>
+            </form>
+            <p>Don't have an account? <a href="#" id="show-register">Register here</a></p>
+        </div>
+
+        <div class="container login-register-container" id="register-container" style="display:none;">
+            <h1>Create Your Account</h1>
+            <form id="register-form">
+                <input type="text" placeholder="Name" required>
+                <input type="email" placeholder="Email" required>
+                <input type="password" placeholder="Password" required>
+                <button type="submit">Register</button>
+            </form>
+            <p>Already have an account? <a href="#" id="show-login">Log in here</a></p>
+        </div>
+
+        <div id="main-app-container" style="display:none;">
+            <nav class="navbar">
+                <div class="navbar-container">
+                    <a href="#" class="brand">Horai</a>
+                    <ul class="nav-links">
+                        <li><a href="#" id="nav-calendar" class="active">Calendar</a></li>
+                        <li><a href="#" id="nav-list">To-Do List</a></li> 
+                        <li><a href="#" id="nav-add-event">Add Event</a></li>
+                        <li><a href="#" id="nav-chatbot">Chat</a></li>
+                        <li><a href="#" id="nav-logout">Logout</a></li>
+                    </ul>
+                </div>
+            </nav>
+
+            <div class="container" id="page-content">
+                <div id="calendar-page" class="page">
+                    <div id="calendar-header">
+                        <button id="prev-month-btn">&lt;</button>
+                        <h2 id="month-year-header"></h2>
+                        <button id="next-month-btn">&gt;</button>
+                    </div>
+                    <div class="schedule-grid-container">
+                        <div id="calendar-weekdays"></div> 
+                        
+                        <div id="calendar-grid"></div> 
+                    </div>
+                    <ul id="event-list" style="display: none;"></ul>
+                </div>
+
+                <div id="list-page" class="page" style="display:none;">
+                    <h2>Your Current Tasks and Events</h2>
+                    <div id="todo-list-container">
+                        <p class="empty-list-message">Loading tasks...</p>
+                    </div>
+                </div>
+
+                <div id="add-event-page" class="page" style="display:none;">
+                    <h2>Add a New Event</h2>
+                    
+                    <div class="google-calendar-connect-section">
+                        <h3>Connect Your Calendar</h3>
+                        <p>Integrate your Google Calendar to see and manage all your events in one place.</p>
+                        <button id="google-connect-btn-in-events" type="button" class="google-login-button google-icon-button">
+                            Connect Google Calendar
+                        </button>
+                    </div>
+
+                    <hr>
+                    
+                    <div class="lms-connect-section">
+                        <h3>Canvas LMS Token</h3>
+                        <p>To integrate assignments from Canvas, please provide your personal API Access Token.</p>
+                        <form id="canvas-token-form" class="event-form">
+                            <label for="canvas-token-input">Canvas API Token</label>
+                            <input type="text" id="canvas-token-input" placeholder="Paste your generated Canvas token here" required>
+                            <button type="submit">Save Canvas Token</button>
+                        </form>
+                        <p class="status-message" id="canvas-status"></p>
+                    </div>
+
+                    <hr>
+                    
+                    <h3>Create a Custom Task</h3>
+                    <form id="add-event-form" class="event-form">
+                        <label for="event-title">Task Name</label>
+                        <input type="text" id="event-title" placeholder="Task or Assignment Name" required>
+                        
+                        <label for="event-title">Task Type</label>
+                        <input type="text" id="event-type" placeholder="Type (e.g., Homework, Exam, Meeting)" required>
+                        
+                        <div class="form-group form-row">
+                            <div class="form-group">
+                                <label for="event-start-time">Start Time (Optional)</label>
+                                <input type="datetime-local" id="event-start-time">
+                            </div>
+                            <div class="form-group">
+                                <label for="event-end-time">End Time (Optional)</label>
+                                <input type="datetime-local" id="event-end-time">
+                            </div>
+                        </div>
+
+                        <div class="form-group form-row">
+                            <div class="form-group">
+                                <label for="event-due-date">Due Date</label>
+                                <input type="date" id="event-due-date"> 
+                            </div>
+                            <div class="form-group">
+                                <label for="event-priority">Priority</label>
+                                <select id="event-priority">
+                                    <option value="Medium" selected>Medium</option>
+                                    <option value="High">High</option>
+                                    <option value="Low">Low</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <textarea id="event-description" placeholder="Event Description..."></textarea>
+                        <button type="submit">Create Event</button>
+                    </form>
+                </div>
+
+                <div id="chatbot-page" class="page" style="display:none;">
+                    <h2>Horai Scheduler Chat</h2>
+                    <div id="chat-window">
+                        <div class="chat-message bot-message">Hello! I'm Horai, your scheduling assistant.</div>
+                    </div>
+                    
+                    <form id="chat-form">
+                        <textarea id="chat-input" placeholder="Type your scheduling request here..." rows="3"></textarea>
+                        <button type="submit">Send</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+</body>
+</html>
