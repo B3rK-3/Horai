@@ -152,6 +152,19 @@ def ask_gemini(convo: list, tasks) -> str:
     return response.text
 
 
+def ask_gemini1(prompt):
+    """
+    Send user input to Gemini and return response text.
+    """
+    model = genai.GenerativeModel("gemini-2.0-flash")
+
+    # Include system prompt in the first user message
+    chat = model.start_chat()
+
+    response = chat.send_message(prompt)
+    return response.text
+
+
 def parse_ai_response(response: str):
     """
     Parses Gemini response and converts times to datetime objects.
